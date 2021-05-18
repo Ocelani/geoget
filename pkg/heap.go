@@ -2,15 +2,20 @@ package geoget
 
 import "container/heap"
 
-// RoadMapHeap is a min-heap of *RoadMap (distance).
+// RoadMapHeap is a min-heap of *RoadMap.
+// It ordenates the heap based on its []*RoadMaps distance.
 type RoadMapHeap []*RoadMap
 
+// * PUBLIC * //
+
+// NewRoadMapHeap constructor method of *RoadMapHeap.
 func NewRoadMapHeap() *RoadMapHeap {
 	h := RoadMapHeap([]*RoadMap{})
 	heap.Init(&h)
 	return &h
 }
 
+// PushRoadMaps just pushed the roadmaps into the heap.
 func (h *RoadMapHeap) PushRoadMaps(roadmaps []*RoadMap) {
 	for _, m := range roadmaps {
 		heap.Push(h, m)

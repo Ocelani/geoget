@@ -2,12 +2,19 @@ package geoget
 
 import "fmt"
 
+// RoadMap object saves the city objects
+// and the corresponding routes it will need
+// to take. It preserves the sequences order,
+// and calculates the total distance of the routes.
 type RoadMap struct {
 	Cities   map[int]*City
 	Routes   map[int]*Route
 	Distance float64
 }
 
+// * PUBLIC * //
+
+// NewRoadMap constructor method of *RoadMap type.
 func NewRoadMap(cities map[int]*City) *RoadMap {
 	m := &RoadMap{
 		Cities: cities,
@@ -18,9 +25,10 @@ func NewRoadMap(cities map[int]*City) *RoadMap {
 	return m
 }
 
+// Log this *RoadMap info.
 func (m *RoadMap) Log(rank int) {
 	fmt.Println()
-	_zlog.Info().
+	zlog.Info().
 		Float64("distance", m.Distance).
 		Msgf("%dº", rank)
 
@@ -29,6 +37,10 @@ func (m *RoadMap) Log(rank int) {
 	}
 }
 
+// * PRIVATE * //
+
+// setRoutes gets each route of this *RoadMap and
+// saves into this *RoadMap pointer object.
 func (m *RoadMap) setRoutes() {
 	for i := range m.Cities {
 		var to string
@@ -43,6 +55,8 @@ func (m *RoadMap) setRoutes() {
 	}
 }
 
+// setDistance saves the total distance
+// of this *RoadMap object, based on its mapped *Routes.
 func (m *RoadMap) setDistance() {
 	for _, r := range m.Routes {
 		m.Distance += r.Distance

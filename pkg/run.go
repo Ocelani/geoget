@@ -9,37 +9,66 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var (
-	_topN = 5
-	_lvl  = zerolog.DebugLevel
-	_zlog = startLogger()
+const (
+	_topN = 5 // Rank sample
+	_lvl  = 1 // Log "info" level
 )
 
+// Logger
+var zlog = startLogger()
+
+// * PUBLIC * //
+
+// Run executes the application algorithm.
 func Run(locations []string) {
-	data := HandleData(locations)
-
-	h := NewRoadMapHeap()
-	h.PushRoadMaps(data)
-
-	for i := 1; i <= _topN; i++ {
+	cities := FindCities(locations) // Get cities data
+	FindRoutes(cities)              // Get routes data and saves in "cities" var
+	roadmap := Permute(cities)      // Get every possible route
+	h := NewRoadMapHeap()           // Initializes the heap of roadmaps
+	h.PushRoadMaps(roadmap)         // Push roadmap data into the heap
+	for i := 1; i <= _topN; i++ {   // Prints the ordered rank data sample
 		heap.Pop(h).(*RoadMap).Log(i)
 	}
 }
 
-func PrintResult(heapCH chan *RoadMap, doneCH chan bool) {
-	for i := 1; i <= _topN; i++ {
-		roadmap := <-heapCH
-		roadmap.Log(i)
+// FindCities collects data from locations and stores into an array of *City.
+func FindCities(locations []string) []*City {
+	cityCH := make(chan *City)
+	defer close(cityCH)
+
+	go func() {
+		// Search for locations geo refferences
+		for _, l := range locations {
+			go func(l string) {
+
+				_, err := geocoder.FullGeocode(l)
+				if err != nil {
+					zlog.Panic().Err(err).Send()
+				}
+
+				cityCH <- NewCity(l) // Send data in channel
+			}(l)
+		}
+	}()
+
+	cities := []*City{}
+
+	// Waits untill receive all cities data in channel
+	for range locations {
+		cities = append(cities, <-cityCH)
 	}
+
+	return cities
 }
 
-func HandleData(locations []string) []*RoadMap {
+// FindRoutes searches for routes from each city to the other cities.
+// It doesn't return any value, but it saves in each city pointer.
+func FindRoutes(cities []*City) {
 	doneCH := make(chan bool)
 	defer close(doneCH)
 
-	cities := SetCities(locations)
-
 	go func() {
+		// For each city, it searches and saves on city pointer
 		for _, c := range cities {
 			go func(c *City) {
 				doneCH <- c.SetRoutes(cities)
@@ -50,89 +79,11 @@ func HandleData(locations []string) []*RoadMap {
 	for range cities {
 		<-doneCH
 	}
-
-	return Permute(cities)
 }
 
-// SetCities that really exists.
-func SetCities(locations []string) []*City {
-	cityCH := make(chan *City)
-	defer close(cityCH)
+// * PRIVATE * //
 
-	// Busca as infos e coordenadas de cada cidade
-	go func() {
-		for _, l := range locations {
-			go func(l string) {
-				_, err := geocoder.FullGeocode(l)
-
-				if err != nil {
-					_zlog.Panic().Err(err).Send()
-				}
-
-				cityCH <- NewCity(l)
-			}(l)
-		}
-	}()
-
-	cities := []*City{}
-
-	for range locations {
-		cities = append(cities, <-cityCH)
-	}
-
-	return cities
-}
-
-// Permute calls f with each permutation of cities.
-func Permute(cities []*City) []*RoadMap {
-	roadCH := make(chan *RoadMap)
-	defer close(roadCH)
-
-	go permute(roadCH, sliceToMap(cities), 0)
-
-	roadmap := []*RoadMap{}
-
-	f := factorial(len(cities))
-
-	for len(roadmap) < f {
-		roadmap = append(roadmap, <-roadCH)
-	}
-
-	return roadmap
-}
-
-// Permute the values.
-func permute(roadCH chan<- *RoadMap, c map[int]*City, i int) {
-	if i > len(c) {
-		roadCH <- NewRoadMap(c)
-		return
-	}
-	permute(roadCH, c, i+1)
-
-	for j := i + 1; j < len(c); j++ {
-		c[i], c[j] = c[j], c[i]
-		permute(roadCH, c, i+1)
-		c[i], c[j] = c[j], c[i]
-	}
-}
-
-func sliceToMap(slice []*City) map[int]*City {
-	m := map[int]*City{}
-	for i, c := range slice {
-		m[i] = c
-	}
-	return m
-}
-
-func factorial(n int) int {
-	var fact = 1
-	for i := 1; i <= n; i++ {
-		fact = fact * i
-	}
-	return fact
-}
-
-// startLogger just initializes the logger.
+// startLogger just initializes the logger of this app.
 func startLogger() zerolog.Logger {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	zerolog.SetGlobalLevel(_lvl)
