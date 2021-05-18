@@ -23,7 +23,7 @@ var zlog = startLogger()
 func Run(locations []string) {
 	cities := FindCities(locations) // Get cities data
 	FindRoutes(cities)              // Get routes data and saves in "cities" var
-	roadmap := Permute(cities)      // Get every possible route
+	roadmap := Permute(cities)      // Get every possible route roadmap sequence
 	h := NewRoadMapHeap()           // Initializes the heap of roadmaps
 	h.PushRoadMaps(roadmap)         // Push roadmap data into the heap
 	for i := 1; i <= _topN; i++ {   // Prints the ordered rank data sample
